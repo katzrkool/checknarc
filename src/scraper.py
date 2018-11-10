@@ -6,26 +6,16 @@ from time import sleep
 from os.path import join
 
 class Scraper:
-    def __init__(self, patients, username: str, password: str, writeFolder: str):
+    def __init__(self, patients, writeFolder: str):
         self.patients = self.csvParse(patients)
-        self.username = username
-        self.password = password
         self.writeFolder = writeFolder
         today = datetime.today().date()
         self.enddate = today.strftime("%m/%d/%Y")
         self.startdate = (today - timedelta(days=100)).strftime('%m/%d/%Y"')
         self.session = requests.session()
         self.auth_token = ''
+        self.supervisor = None
         self.pdfLinks = []
-
-        self.initSession(self.username, self.password)
-
-    def bulk(self):
-        data = []
-        for i in self.patients:
-            data.append(self.patientLookup(i['first'], i['last'], i['dob']))
-        self.pdfFetch(self.pdfLinks)
-        self.csvExport(data)
 
     def csvParse(self, file: str):
         with open(file, 'r')  as f:
@@ -43,11 +33,10 @@ class Scraper:
             writer.writerows(data)
 
     def pdfFetch(self, links: list):
-        if len(links) < 2:
+        if len(links) < 2 and links != 0:
             sleep(4/len(links))
 
         headers = {
-            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
             'Accept': '*/*;q=0.5, text/javascript, application/javascript, application/ecmascript, application/x-ecmascript',
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRF-Token': self.auth_token,
@@ -58,9 +47,7 @@ class Scraper:
             pdf = self.session.get(i['url'])
             with open(f'{join(self.writeFolder, i["fileName"])}.pdf', 'wb') as f:
                 f.write(pdf.content)
-
-            #Once we have the pdf, remove the document so the user doesn't have a ton of docs waiting for them.
-            self.request('GET', f'https://arkansas.pmpaware.net/background_documents/{i["id"]}/cancel', headers=headers)
+            self.request('GET', f'https://arkansas.pmpaware.net/background_documents/{i["id"]}/cancel')
 
     def request(self, type: str, url: str, headers: dict = None, data: dict= None, params = None, attempts: int = 2) -> requests.Response:
         for i in range(0, attempts):
@@ -80,14 +67,40 @@ class Scraper:
         self.auth_token = self.extract_auth(loginPage)
         payload = {'auth_key': username, 'authenticity_token': self.auth_token, 'commit': 'Log+In', 'password': password, 'utf8': '✓', }
         r = self.request('POST', 'https://arkansas.pmpaware.net/auth/identity/callback', data=payload)
+        if 'Authentication failed, please try again.' in r.text:
+            return False
         self.auth_token = self.extract_auth(r.text)
+        self.detectSupervisor()
 
+    def setSupervisor(self, supervisor):
+        self.supervisor = supervisor
+
+    def detectSupervisor(self):
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-Token': self.auth_token,
+            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:62.0) Gecko/20100101 Firefox/62.0'}
+        r = self.request('GET', 'https://arkansas.pmpaware.net/rx_search_requests/new', headers=headers)
+
+        soup = BeautifulSoup(r.text, 'html.parser')
+        select = soup.find(id='rx_search_request_delegator_id')
+        supervisors = []
+        if select:
+            options = select.find_all('option')[1:]
+            for i in options:
+                supervisors.append({'name': i.get_text(), 'id': i['value']})
+        return supervisors
 
     def patientLookup(self, first: str, last: str, dob: str):
         payload = {'authenticity_token': self.auth_token, 'rx_search_request[first_name]': first,
                    'rx_search_request[last_name]': last, 'rx_search_request[birthdate]': dob, 'utf8': '✓',
                    'rx_search_request[filled_at_begin]': self.startdate, 'rx_search_request[filled_at_end]': self.enddate,
                    'rx_search_request[search_type]': 'interconnect'}
+
+        if self.supervisor:
+            payload['rx_search_request[delegator_id]'] = self.supervisor['id']
 
         headers = {
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -131,6 +144,6 @@ class Scraper:
 
         pdfUrl = f'https://arkansas.pmpaware.net/background_documents/{pdfID}/download'
 
-        self.pdfLinks.append({'url': pdfUrl, 'id': id, 'fileName': fileName})
+        self.pdfLinks.append({'url': pdfUrl, 'id': pdfID, 'fileName': fileName})
 
         return f'See {fileName}.pdf'
