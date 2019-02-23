@@ -97,7 +97,7 @@ class application(QMainWindow):
         mainPage.help = QPushButton("Help", mainPage)
         mainPage.help.resize(mainPage.help.sizeHint())
         mainPage.help.move(450, 350)
-        mainPage.help.clicked.connect(lambda: webbrowser.open("https://checknarc.com/support.html"))
+        mainPage.help.clicked.connect(lambda: webbrowser.open("https://github.com/katzrkool/checknarc#usage"))
 
         mainPage.setFixedSize(600,400)
         self.center()
