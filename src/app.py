@@ -250,8 +250,9 @@ class scrapeRemote(QThread):
     def run(self):
         self.status.emit("Initializing")
         scraper = Scraper(self.csvFile, self.saveLoc)
-        if scraper.initSession(self.username, self.password) == False:
-            self.status.emit("Incorrect Login")
+        initState = scraper.initSession(self.username, self.password)
+        if initState[0] == False:
+            self.status.emit(initState[1])
             self._isRunning = False
             return
 

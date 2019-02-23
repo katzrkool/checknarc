@@ -1,14 +1,7 @@
 # CheckNarc
 Download patient prescription data from the [arkansas pmp database](https://arkansas.pmpaware.net) for all your patients
 
-## Prerequisites
-* PyQt5
-* requests
-* bs4
-
-You can install them all via
-
-`pip install -r requirements.txt`
+This project uses [pipenv](https://pipenv.readthedocs.io/en/latest/) to manage packages. To install the dependencies, just run `pipenv install`
 
 ## Download
 

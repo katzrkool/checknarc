@@ -22,8 +22,12 @@ class Scraper:
             reader = DictReader(f)
             patients = [{'first': row['Patient First Name'],
                          'last': row['Patient Last Name'],
-                         'dob': row['Patient DOB']} for row in reader]
+                         'dob': self.formatDob(row['Patient DOB'])} for row in reader]
         return patients
+
+    def formatDob(self, dob: str) -> str:
+        # initially, the values passed aren't zero padded, this fixes that
+        return datetime.strptime(dob, '%m/%d/%Y').strftime('%m/%d/%Y')
 
     def csvExport(self, data: list):
         fieldnames = ['First Name', 'Last Name', 'DOB', 'Response']
@@ -33,7 +37,7 @@ class Scraper:
             writer.writerows(data)
 
     def pdfFetch(self, links: list):
-        if len(links) < 2 and links != 0:
+        if len(links) < 2 and len(links) != 0:
             sleep(4/len(links))
 
         headers = {
@@ -62,15 +66,18 @@ class Scraper:
         soup = BeautifulSoup(data, 'html.parser')
         return soup.find('meta', {'name': 'csrf-token'})['content']
 
-    def initSession(self, username: str, password: str):
+    def initSession(self, username: str, password: str) -> tuple:
         loginPage = self.request('GET', 'https://arkansas.pmpaware.net/', attempts=1).text
         self.auth_token = self.extract_auth(loginPage)
         payload = {'auth_key': username, 'authenticity_token': self.auth_token, 'commit': 'Log+In', 'password': password, 'utf8': '✓', }
         r = self.request('POST', 'https://arkansas.pmpaware.net/auth/identity/callback', data=payload)
         if 'Authentication failed, please try again.' in r.text:
-            return False
+            return (False, 'Incorrect Login')
+        elif 'Your password has expired.' in r.text:
+            return (False, 'Password has expired')
         self.auth_token = self.extract_auth(r.text)
         self.detectSupervisor()
+        return (True, '200 OK')
 
     def setSupervisor(self, supervisor):
         self.supervisor = supervisor
@@ -135,12 +142,12 @@ class Scraper:
 
         headers['X-CSRF-Token'] = self.extract_auth(r)
 
-        url = 'https://arkansas.pmpaware.net/background_documents/new'
+        url = 'https://arkansas.pmpaware.net/background_documents'
         params = {'request_id': id, 'request_type': 'RxSearchRequest',
                   'sort': 'Prescriptions/filled_at/desc|Prescribers/prescriber_last_name/asc|Dispensers/dispensary_name/desc'}
 
-        r = self.request('GET', url, params=params, headers=headers).text
-        pdfID = r.split('"id":')[1].split(',"user_id"')[0]
+        r = self.request('POST', url, data=params, headers=headers)
+        pdfID = r.text.split('"id":')[1].split(',"user_id"')[0]
 
         pdfUrl = f'https://arkansas.pmpaware.net/background_documents/{pdfID}/download'
 
