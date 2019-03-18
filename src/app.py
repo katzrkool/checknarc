@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import (QMainWindow, QApplication, QLabel, QGroupBox, QDesk
                              QProgressBar, QInputDialog, QFileDialog, QCheckBox, QMessageBox)
 from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot, QCoreApplication, Qt
 from PyQt5.QtGui import QIcon
-from src.scraper import Scraper
+from scraper import Scraper
 import sys
 import json
 from pathlib import Path
@@ -25,7 +25,7 @@ class application(QMainWindow):
 
         self.mainPage = QGroupBox()
 
-        self.saveLogin = False;
+        self.saveLogin = False
 
         self.fetchPrefs()
 
@@ -46,8 +46,8 @@ class application(QMainWindow):
     def initUI(self):
 
         mainPage = self.mainPage
-        self.mainPage.setWindowIcon(QIcon("../img/icon.svg"))
-        mainPage.setStyleSheet("QGroupBox {background-image: url(../img/background.png); margin: -5px;}")
+        self.mainPage.setWindowIcon(QIcon("img/icon.svg"))
+        mainPage.setStyleSheet("QGroupBox {background-image: url(img/background.png); margin: -5px;}")
 
         mainPage.usernameLabel = QLabel("Username:", mainPage)
         mainPage.usernameLabel.move(125, 100)

@@ -144,7 +144,8 @@ class Scraper:
 
         url = 'https://arkansas.pmpaware.net/background_documents'
         params = {'request_id': id, 'request_type': 'RxSearchRequest',
-                  'sort': 'Prescriptions/filled_at/desc|Prescribers/prescriber_last_name/asc|Dispensers/dispensary_name/desc'}
+                  'sort': 'Prescriptions/filled_at/desc|Prescribers/prescriber_last_name/asc|Dispensers/dispensary_name/desc',
+                  'document_type': 'pdf'}
 
         r = self.request('POST', url, data=params, headers=headers)
         pdfID = r.text.split('"id":')[1].split(',"user_id"')[0]
